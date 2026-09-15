@@ -51,6 +51,13 @@ PESO_EQ_HNO3 = 63.0
 
 EPS = 1e-9
 
+TANQUES_FERTILIZANTES = {
+    "NQ": "Tanque 1 — Nitratos y quelatos",
+    "FOS": "Tanque 2 — Fosfatos",
+    "NIT": "Tanque 3 — Nitratos",
+}
+TANQUES_VALIDOS = list(TANQUES_FERTILIZANTES)
+
 
 # =============================================================================
 # 1. UTILIDADES NUMÉRICAS
@@ -107,14 +114,14 @@ def nnls_resolver(A, b, iters=4000):
 def incompatibilidades_por_tanque(catalogo):
     """Devuelve conflictos de calcio con sulfatos o fosfatos por tanque."""
     conflictos = []
-    for tanque in ["A", "B"]:
+    for tanque in TANQUES_VALIDOS:
         sub = catalogo[catalogo["Tanque"] == tanque]
         tiene_ca = (sub["Ca"] > 0).any()
         tiene_s_o_p = ((sub["S"] > 0) | (sub["P2O5"] > 0)).any()
         if tiene_ca and tiene_s_o_p:
             nombres = sub[(sub["Ca"] > 0) | (sub["S"] > 0) | (sub["P2O5"] > 0)]["Fertilizante"].tolist()
             conflictos.append(
-                f"⚠️ Incompatibilidad en Tanque {tanque}: calcio junto a sulfatos o fosfatos "
+                f"⚠️ Incompatibilidad en {TANQUES_FERTILIZANTES[tanque]}: calcio junto a sulfatos o fosfatos "
                 f"({', '.join(nombres)}). Reasigna los fertilizantes a tanques distintos."
             )
     return conflictos
@@ -133,17 +140,17 @@ PLANTILLAS_CULTIVO = {
     "Personalizado (definir manualmente)": {"N": 0, "P": 0, "K": 0, "Ca": 0, "Mg": 0, "S": 0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
 }
 
-# Catálogo de fertilizantes de Tanques A y B (composición % en peso)
+# Catálogo de fertilizantes de los tres tanques de fertilizantes (composición % en peso)
 CATALOGO_DEFECTO = pd.DataFrame([
-    {"Fertilizante": "Nitrato de Calcio",           "Tanque": "A", "N": 15.5, "P2O5": 0.0,  "K2O": 0.0,  "Ca": 19.0, "Mg": 0.0, "S": 0.0,  "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
-    {"Fertilizante": "Nitrato de Potasio",          "Tanque": "A", "N": 13.0, "P2O5": 0.0,  "K2O": 46.0, "Ca": 0.0,  "Mg": 0.0, "S": 0.0,  "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
-    {"Fertilizante": "Quelato de Hierro EDDHA",     "Tanque": "A", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0,  "Fe": 6.0, "Zn": 0.0,  "B": 0.0},
-    {"Fertilizante": "MAP (Fosfato Monoamónico)",   "Tanque": "B", "N": 12.0, "P2O5": 61.0, "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0,  "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
-    {"Fertilizante": "MKP (Fosfato Monopotásico)",  "Tanque": "B", "N": 0.0,  "P2O5": 52.0, "K2O": 34.0, "Ca": 0.0,  "Mg": 0.0, "S": 0.0,  "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
-    {"Fertilizante": "Sulfato de Magnesio",         "Tanque": "B", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 9.8, "S": 13.0, "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
-    {"Fertilizante": "Sulfato de Potasio",          "Tanque": "B", "N": 0.0,  "P2O5": 0.0,  "K2O": 50.0, "Ca": 0.0,  "Mg": 0.0, "S": 18.0, "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
-    {"Fertilizante": "Sulfato de Zinc",             "Tanque": "B", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0,  "Fe": 0.0, "Zn": 35.0, "B": 0.0},
-    {"Fertilizante": "Solubor",                     "Tanque": "B", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0,  "Fe": 0.0, "Zn": 0.0,  "B": 20.5},
+    {"Fertilizante": "Nitrato de Calcio",           "Tanque": "NQ",  "N": 15.5, "P2O5": 0.0,  "K2O": 0.0,  "Ca": 19.0, "Mg": 0.0,  "S": 0.0,  "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
+    {"Fertilizante": "Nitrato de Potasio",          "Tanque": "NIT", "N": 13.0, "P2O5": 0.0,  "K2O": 46.0, "Ca": 0.0,  "Mg": 0.0, "S": 0.0,  "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
+    {"Fertilizante": "Quelato de Hierro EDDHA",     "Tanque": "NQ",  "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 6.0, "Zn": 0.0, "B": 0.0},
+    {"Fertilizante": "MAP (Fosfato Monoamónico)",   "Tanque": "FOS", "N": 12.0, "P2O5": 61.0, "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
+    {"Fertilizante": "MKP (Fosfato Monopotásico)",  "Tanque": "FOS", "N": 0.0,  "P2O5": 52.0, "K2O": 34.0, "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
+    {"Fertilizante": "Sulfato de Magnesio",         "Tanque": "NIT", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 9.8, "S": 13.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
+    {"Fertilizante": "Sulfato de Potasio",          "Tanque": "NIT", "N": 0.0,  "P2O5": 0.0,  "K2O": 50.0, "Ca": 0.0,  "Mg": 0.0, "S": 18.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
+    {"Fertilizante": "Sulfato de Zinc",             "Tanque": "NIT", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 35.0, "B": 0.0},
+    {"Fertilizante": "Solubor",                     "Tanque": "NIT", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 0.0, "B": 20.5},
 ])
 
 COLS_RIQUEZA = ["N", "P2O5", "K2O", "Ca", "Mg", "S", "Fe", "Zn", "B"]
@@ -176,10 +183,16 @@ def init_state():
         "pct_h3po4": 70,            # % del ácido total como H3PO4 (resto HNO3)
         "volumen_riego_m3": 10.0,
         "factor_concentracion": 100.0,
+        "ce_objetivo": 2.0,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
+    catalogo = st.session_state["catalogo"].copy()
+    if "Tanque" in catalogo.columns:
+        catalogo["Tanque"] = catalogo["Tanque"].replace({"A": "NQ", "B": "FOS"})
+        catalogo.loc[~catalogo["Tanque"].isin(TANQUES_VALIDOS), "Tanque"] = "NIT"
+        st.session_state["catalogo"] = catalogo
 
 
 init_state()
@@ -307,26 +320,33 @@ with tab_cultivo:
 # MÓDULO C: BASE DE DATOS DE FERTILIZANTES
 # -----------------------------------------------------------------------
 with tab_ferti:
-    st.subheader("Catálogo de fertilizantes comerciales (Tanques A y B)")
-    st.caption("Edita libremente las riquezas nutricionales (%), agrega o elimina filas. "
-               "El Tanque C está reservado exclusivamente para los ácidos.")
+    st.subheader("Selección de fertilizantes por tanque")
+    st.caption("Edita las riquezas (%), agrega o elimina fertilizantes dentro del tanque correspondiente. "
+               "Los ácidos se configuran por separado en el cuarto tanque.")
 
     column_config = {
         "Fertilizante": st.column_config.TextColumn("Fertilizante", required=True),
-        "Tanque": st.column_config.SelectboxColumn("Tanque", options=["A", "B"], required=True),
     }
     for c in COLS_RIQUEZA:
         etiqueta = f"% {c}" if c not in ("P2O5", "K2O") else f"% {c}"
         column_config[c] = st.column_config.NumberColumn(etiqueta, min_value=0.0, max_value=100.0, step=0.1)
 
-    catalogo_editado = st.data_editor(
-        st.session_state["catalogo"],
-        column_config=column_config,
-        num_rows="dynamic",
-        use_container_width=True,
-        key="editor_catalogo",
-    )
-    st.session_state["catalogo"] = catalogo_editado
+    tablas_tanques = []
+    for codigo, nombre in TANQUES_FERTILIZANTES.items():
+        st.markdown(f"### {nombre}")
+        datos_tanque = st.session_state["catalogo"]
+        datos_tanque = datos_tanque[datos_tanque["Tanque"] == codigo].drop(columns=["Tanque"])
+        editado = st.data_editor(
+            datos_tanque.reset_index(drop=True),
+            column_config=column_config,
+            num_rows="dynamic",
+            use_container_width=True,
+            key=f"editor_catalogo_{codigo}",
+        )
+        editado = editado.copy()
+        editado["Tanque"] = codigo
+        tablas_tanques.append(editado)
+    st.session_state["catalogo"] = pd.concat(tablas_tanques, ignore_index=True)
 
 # -----------------------------------------------------------------------
 # MÓDULO D/E: TANQUES MADRE Y NEUTRALIZACIÓN DE BICARBONATOS
@@ -343,6 +363,11 @@ with tab_tanques:
             "Factor de concentración del Tanque Madre (X)",
             1.0, 1000.0, num(st.session_state["factor_concentracion"], 100.0), step=1.0)
 
+    st.session_state["ce_objetivo"] = st.number_input(
+        "Conductividad eléctrica deseada de la solución final (dS/m)",
+        0.0, 10.0, num(st.session_state["ce_objetivo"], 2.0), step=0.01)
+    st.caption("La CE objetivo se usa como referencia y advertencia; la dosificación sigue priorizando las metas de nutrientes.")
+
     st.info(
         f"Volumen físico de cada tanque concentrado ≈ "
         f"**{num(st.session_state['volumen_riego_m3']) / max(num(st.session_state['factor_concentracion']), EPS):.3f} m³** "
@@ -351,7 +376,7 @@ with tab_tanques:
     )
 
     st.markdown("---")
-    st.subheader("Tanque C — Neutralización de Bicarbonatos (Acondicionamiento de pH)")
+    st.subheader("Tanque 4 — Ácidos: neutralización de bicarbonatos y acondicionamiento de pH")
 
     c3, c4 = st.columns(2)
     with c3:
@@ -476,9 +501,10 @@ def calcular_todo():
     catalogo["Fertilizante"] = catalogo["Fertilizante"].fillna("").astype(str)
     catalogo = catalogo[catalogo["Fertilizante"].str.strip() != ""].reset_index(drop=True)
     if "Tanque" not in catalogo.columns:
-        catalogo["Tanque"] = "A"
-    catalogo["Tanque"] = catalogo["Tanque"].fillna("A").astype(str).str.upper().str.strip()
-    catalogo.loc[~catalogo["Tanque"].isin(["A", "B"]), "Tanque"] = "A"
+        catalogo["Tanque"] = "NIT"
+    catalogo["Tanque"] = catalogo["Tanque"].fillna("NIT").astype(str).str.upper().str.strip()
+    catalogo["Tanque"] = catalogo["Tanque"].replace({"A": "NQ", "B": "FOS"})
+    catalogo.loc[~catalogo["Tanque"].isin(TANQUES_VALIDOS), "Tanque"] = "NIT"
 
     n_fert = len(catalogo)
     A_matrix = np.zeros((len(NUTRIENTES), max(n_fert, 1)))
@@ -536,6 +562,22 @@ def calcular_todo():
     )
     ce_incremento = (masa_fertilizantes_g_m3 + masa_acidos_g_m3) / 640.0
     ce_estimada = num(agua["CE"]) + ce_incremento
+    ce_objetivo = num(st.session_state["ce_objetivo"], 2.0)
+    if ce_objetivo < num(agua["CE"]):
+        avisos.append(
+            f"La CE objetivo ({ce_objetivo:.2f} dS/m) es menor que la CE del agua de origen "
+            f"({num(agua['CE']):.2f} dS/m); no puede alcanzarse agregando fertilizantes."
+        )
+    elif ce_estimada > ce_objetivo + 0.05:
+        avisos.append(
+            f"La CE estimada ({ce_estimada:.2f} dS/m) supera la CE objetivo "
+            f"({ce_objetivo:.2f} dS/m). Reduce la concentración nutricional o el volumen de fertilizantes."
+        )
+    elif ce_estimada < ce_objetivo - 0.05:
+        avisos.append(
+            f"La CE estimada ({ce_estimada:.2f} dS/m) queda por debajo de la CE objetivo "
+            f"({ce_objetivo:.2f} dS/m). La CE es orientativa y no se añadirá fertilizante solo para subirla."
+        )
 
     # --- 8. Avisos de operación ---
     if not requiere_bajar_pH:
@@ -564,6 +606,7 @@ def calcular_todo():
         "total_aportado": total_aportado,
         "balance": balance,
         "ce_estimada": ce_estimada,
+        "ce_objetivo": ce_objetivo,
         "avisos": avisos,
         "v_riego": v_riego,
         "factor_c": factor_c,
@@ -609,29 +652,20 @@ with tab_resultados:
         # ---- Panel 2: Dosis de Tanques Madre ----
         st.markdown("### 2️⃣ Dosis de Tanques Madre")
         cat_res = resultado["catalogo_resultado"]
-        colA, colB = st.columns(2)
-        with colA:
-            st.markdown("**Tanque A** (Calcio y Quelatos)")
-            tA = cat_res[cat_res["Tanque"] == "A"][["Fertilizante", "Dosis (g/m3)", "kg totales a disolver"]]
-            if len(tA):
-                tA_disp = tA.copy()
-                tA_disp["Dosis (g/m3)"] = tA_disp["Dosis (g/m3)"].round(2)
-                tA_disp["kg totales a disolver"] = tA_disp["kg totales a disolver"].round(3)
-                st.dataframe(tA_disp, hide_index=True, use_container_width=True)
+        for codigo, nombre in TANQUES_FERTILIZANTES.items():
+            st.markdown(f"**{nombre}**")
+            tanque_resultado = cat_res[cat_res["Tanque"] == codigo][
+                ["Fertilizante", "Dosis (g/m3)", "kg totales a disolver"]
+            ]
+            if len(tanque_resultado):
+                tanque_disp = tanque_resultado.copy()
+                tanque_disp["Dosis (g/m3)"] = tanque_disp["Dosis (g/m3)"].round(2)
+                tanque_disp["kg totales a disolver"] = tanque_disp["kg totales a disolver"].round(3)
+                st.dataframe(tanque_disp, hide_index=True, use_container_width=True)
             else:
-                st.caption("Sin fertilizantes asignados al Tanque A.")
-        with colB:
-            st.markdown("**Tanque B** (Fosfatos, Sulfatos y Micronutrientes)")
-            tB = cat_res[cat_res["Tanque"] == "B"][["Fertilizante", "Dosis (g/m3)", "kg totales a disolver"]]
-            if len(tB):
-                tB_disp = tB.copy()
-                tB_disp["Dosis (g/m3)"] = tB_disp["Dosis (g/m3)"].round(2)
-                tB_disp["kg totales a disolver"] = tB_disp["kg totales a disolver"].round(3)
-                st.dataframe(tB_disp, hide_index=True, use_container_width=True)
-            else:
-                st.caption("Sin fertilizantes asignados al Tanque B.")
+                st.caption(f"Sin fertilizantes asignados a {nombre}.")
 
-        st.markdown("**Tanque C** (Acondicionamiento de pH / Ácidos)")
+        st.markdown("**Tanque 4 — Ácidos** (Acondicionamiento de pH)")
         df_tanqueC = pd.DataFrame({
             "Ácido": ["Ácido Fosfórico (H₃PO₄)", "Ácido Nítrico (HNO₃)"],
             "L comercial / m³ de riego": [round(resultado["vol_h3po4_L_m3"], 4), round(resultado["vol_hno3_L_m3"], 4)],
@@ -654,9 +688,9 @@ with tab_resultados:
         c1, c2 = st.columns(2)
         with c1:
             st.metric("CE estimada de la solución final", f"{resultado['ce_estimada']:.2f} dS/m",
-                       delta=f"{resultado['ce_estimada'] - num(st.session_state['agua']['CE']):.2f} vs. agua origen")
+                       delta=f"{resultado['ce_estimada'] - resultado['ce_objetivo']:.2f} vs. objetivo")
         with c2:
-            st.metric("Bicarbonatos residuales objetivo", f"{num(st.session_state['hco3_residual']):.2f} meq/L")
+            st.metric("CE deseada", f"{resultado['ce_objetivo']:.2f} dS/m")
 
     else:
         st.info("Configura las pestañas de Agua, Cultivo, Fertilizantes y Tanques, y presiona "
