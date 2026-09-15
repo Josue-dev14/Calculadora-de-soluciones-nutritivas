@@ -153,9 +153,11 @@ CATALOGO_DEFECTO = pd.DataFrame([
     {"Fertilizante": "Solubor",                     "Tanque": "NIT", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 0.0, "B": 20.5},
 ])
 
+FERTILIZANTES_DISPONIBLES = CATALOGO_DEFECTO["Fertilizante"].tolist()
+
 COLS_RIQUEZA = ["N", "P2O5", "K2O", "Ca", "Mg", "S", "Fe", "Zn", "B"]
 
-# Ácidos por defecto para el Tanque C
+# Ácidos por defecto para el Tanque 4
 ACIDOS_DEFECTO = {
     "H3PO4": {"nombre": "Ácido Fosfórico", "concentracion": 85.0, "densidad": 1.685, "elemento": "P", "peso_eq": PESO_EQ_H3PO4, "ppm_por_meq": 31.0},
     "HNO3":  {"nombre": "Ácido Nítrico",   "concentracion": 67.0, "densidad": 1.400, "elemento": "N", "peso_eq": PESO_EQ_HNO3, "ppm_por_meq": 14.0},
@@ -210,11 +212,11 @@ def aplicar_plantilla():
 # =============================================================================
 
 st.title("🌱 Calculadora de Soluciones Nutritivas para Fertirriego")
-st.caption("Casa malla / ambiente protegido — Tanques Madre A, B y C (100x)")
+st.caption("Casa malla / ambiente protegido — cuatro ventanas de configuración")
 
-tab_agua, tab_cultivo, tab_ferti, tab_tanques, tab_resultados = st.tabs(
+tab_agua, tab_cultivo, tab_ferti, tab_tanques, tab_acidos, tab_ce, tab_resultados = st.tabs(
     ["💧 Agua de Riego", "🌱 Demanda del Cultivo", "🧪 Fertilizantes",
-     "⚗️ Tanques Madre & Ácidos", "📊 Resultados"]
+    "🛢️ Tanques Madre", "⚗️ Ácidos", "📈 CE objetivo", "📊 Resultados"]
 )
 
 # -----------------------------------------------------------------------
@@ -325,7 +327,8 @@ with tab_ferti:
                "Los ácidos se configuran por separado en el cuarto tanque.")
 
     column_config = {
-        "Fertilizante": st.column_config.TextColumn("Fertilizante", required=True),
+        "Fertilizante": st.column_config.SelectboxColumn(
+            "Fertilizante", options=FERTILIZANTES_DISPONIBLES, required=True),
     }
     for c in COLS_RIQUEZA:
         etiqueta = f"% {c}" if c not in ("P2O5", "K2O") else f"% {c}"
@@ -349,7 +352,7 @@ with tab_ferti:
     st.session_state["catalogo"] = pd.concat(tablas_tanques, ignore_index=True)
 
 # -----------------------------------------------------------------------
-# MÓDULO D/E: TANQUES MADRE Y NEUTRALIZACIÓN DE BICARBONATOS
+# MÓDULO D: TANQUES MADRE
 # -----------------------------------------------------------------------
 with tab_tanques:
     st.subheader("Configuración de Tanques Madre")
@@ -363,11 +366,6 @@ with tab_tanques:
             "Factor de concentración del Tanque Madre (X)",
             1.0, 1000.0, num(st.session_state["factor_concentracion"], 100.0), step=1.0)
 
-    st.session_state["ce_objetivo"] = st.number_input(
-        "Conductividad eléctrica deseada de la solución final (dS/m)",
-        0.0, 10.0, num(st.session_state["ce_objetivo"], 2.0), step=0.01)
-    st.caption("La CE objetivo se usa como referencia y advertencia; la dosificación sigue priorizando las metas de nutrientes.")
-
     st.info(
         f"Volumen físico de cada tanque concentrado ≈ "
         f"**{num(st.session_state['volumen_riego_m3']) / max(num(st.session_state['factor_concentracion']), EPS):.3f} m³** "
@@ -375,9 +373,12 @@ with tab_tanques:
         f"inyectado al {100.0 / max(num(st.session_state['factor_concentracion']), EPS):.2f} % en el riego final."
     )
 
-    st.markdown("---")
-    st.subheader("Tanque 4 — Ácidos: neutralización de bicarbonatos y acondicionamiento de pH")
-
+# -----------------------------------------------------------------------
+# MÓDULO E: ÁCIDOS
+# -----------------------------------------------------------------------
+with tab_acidos:
+    st.subheader("Tanque 4 — Ácidos")
+    st.caption("Neutralización de bicarbonatos y acondicionamiento de pH.")
     c3, c4 = st.columns(2)
     with c3:
         st.session_state["hco3_residual"] = st.number_input(
@@ -415,9 +416,22 @@ with tab_tanques:
             "Densidad HNO₃ (g/mL)", 0.5, 2.5, num(ac["HNO3"]["densidad"], 1.400), step=0.001, key="hno3_dens")
     st.session_state["acidos_cfg"] = ac
 
+# -----------------------------------------------------------------------
+# MÓDULO F: CONDUCTIVIDAD ELÉCTRICA
+# -----------------------------------------------------------------------
+with tab_ce:
+    st.subheader("Conductividad Eléctrica objetivo")
+    st.session_state["ce_objetivo"] = st.number_input(
+        "CE deseada de la solución final (dS/m)",
+        0.0, 10.0, num(st.session_state["ce_objetivo"], 2.0), step=0.01)
+    st.caption(
+        "La CE objetivo se usa como referencia y advertencia; la dosificación sigue priorizando "
+        "las metas de nutrientes. Confirma la CE real con un conductímetro."
+    )
+
 
 # =============================================================================
-# 5. MOTOR DE CÁLCULO (MÓDULO F)
+# 5. MOTOR DE CÁLCULO (MÓDULO G)
 # =============================================================================
 
 def calcular_todo():
@@ -443,7 +457,7 @@ def calcular_todo():
     # --- 2. Demanda neta tras el agua ---
     demanda_tras_agua = {n: max(num(meta.get(n, 0.0)) - aporte_agua[n], 0.0) for n in NUTRIENTES}
 
-    # --- 3. Neutralización de bicarbonatos (Tanque C) ---
+    # --- 3. Neutralización de bicarbonatos (Tanque 4) ---
     hco3_ppm = num(agua["HCO3"])
     meq_hco3_agua = hco3_ppm / HCO3_EQ
     meq_residual = num(st.session_state["hco3_residual"])
@@ -489,7 +503,7 @@ def calcular_todo():
     vol_h3po4_total_tanqueC = vol_h3po4_L_m3 * v_riego
     vol_hno3_total_tanqueC = vol_hno3_L_m3 * v_riego
 
-    # --- 4. Demanda neta final para fertilizantes de Tanques A y B ---
+    # --- 4. Demanda neta final para fertilizantes de los Tanques 1, 2 y 3 ---
     demanda_final = {n: max(demanda_tras_agua[n] - aporte_acido[n], 0.0) for n in NUTRIENTES}
 
     # --- 5. Preparar matriz de composición del catálogo (fracción elemental) ---
@@ -641,8 +655,8 @@ with tab_resultados:
             "Nutriente": [NOMBRES_NUTRIENTES[n] for n in NUTRIENTES],
             "Requerido": [round(num(meta.get(n, 0.0)), 2) for n in NUTRIENTES],
             "Aportado por Agua": [round(resultado["aporte_agua"][n], 2) for n in NUTRIENTES],
-            "Aportado por Ácidos (Tanque C)": [round(resultado["aporte_acido"][n], 2) for n in NUTRIENTES],
-            "Dosis Fertilizantes (A y B)": [round(resultado["aporte_fertilizantes"].get(n, 0.0), 2) for n in NUTRIENTES],
+            "Aportado por Ácidos (Tanque 4)": [round(resultado["aporte_acido"][n], 2) for n in NUTRIENTES],
+            "Dosis Fertilizantes (Tanques 1, 2 y 3)": [round(resultado["aporte_fertilizantes"].get(n, 0.0), 2) for n in NUTRIENTES],
             "Total Aportado": [round(resultado["total_aportado"][n], 2) for n in NUTRIENTES],
             "Balance Final (ppm)": [round(resultado["balance"][n], 2) for n in NUTRIENTES],
         })
