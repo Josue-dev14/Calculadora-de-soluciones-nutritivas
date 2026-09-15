@@ -150,7 +150,6 @@ CATALOGO_DEFECTO = pd.DataFrame([
     {"Fertilizante": "Sulfato de Magnesio",         "Tanque": "SUL", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 9.8, "S": 13.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
     {"Fertilizante": "Sulfato de Potasio",          "Tanque": "SUL", "N": 0.0,  "P2O5": 0.0,  "K2O": 50.0, "Ca": 0.0, "Mg": 0.0, "S": 18.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
     {"Fertilizante": "Sulfato de Zinc",             "Tanque": "SUL", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0, "Ca": 0.0, "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 35.0, "B": 0.0},
-    {"Fertilizante": "Solubor",                     "Tanque": "SUL", "N": 0.0,  "P2O5": 0.0, "K2O": 0.0, "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 0.0, "B": 20.5},
 ])
 
 FERTILIZANTES_DISPONIBLES = CATALOGO_DEFECTO["Fertilizante"].tolist()
@@ -192,6 +191,7 @@ def init_state():
             st.session_state[k] = v
     catalogo = st.session_state["catalogo"].copy()
     if "Tanque" in catalogo.columns:
+        catalogo = catalogo[catalogo["Fertilizante"] != "Solubor"].reset_index(drop=True)
         catalogo["Tanque"] = catalogo["Tanque"].replace({"A": "NQ", "B": "FOS", "NIT": "SUL"})
         catalogo.loc[catalogo["Fertilizante"] == "Nitrato de Potasio", "Tanque"] = "NQ"
         catalogo.loc[~catalogo["Tanque"].isin(TANQUES_VALIDOS), "Tanque"] = "SUL"
