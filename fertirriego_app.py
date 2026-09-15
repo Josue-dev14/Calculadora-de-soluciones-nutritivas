@@ -47,7 +47,6 @@ HCO3_EQ = 61.0               # peso equivalente del HCO3- (meq/L = ppm/61)
 # Pesos equivalentes de los ácidos (mg por meq == mg por mmol, 1 eq = 1 H+ útil
 # en el rango de pH de neutralización de bicarbonatos)
 PESO_EQ_H3PO4 = 98.0
-PESO_EQ_HNO3 = 63.0
 
 EPS = 1e-9
 
@@ -127,6 +126,31 @@ def incompatibilidades_por_tanque(catalogo):
     return conflictos
 
 
+def balance_iones_agua(agua):
+    """Calcula cationes y aniones medidos en el agua, expresados en meq/L."""
+    cationes = {
+        "Na⁺": num(agua["Na"]) / 22.99,
+        "K⁺": num(agua["K"]) / 39.10,
+        "Ca²⁺": num(agua["Ca"]) * 2.0 / 40.08,
+        "Mg²⁺": num(agua["Mg"]) * 2.0 / 24.31,
+    }
+    aniones = {
+        "HCO₃⁻": num(agua["HCO3"]) / 61.0,
+        "Cl⁻": num(agua["Cl"]) / 35.45,
+        "NO₃⁻": num(agua["NO3"]) / 62.0,
+        "SO₄²⁻": num(agua["SO4"]) * 2.0 / 96.06,
+    }
+    total_cationes = sum(cationes.values())
+    total_aniones = sum(aniones.values())
+    return {
+        "cationes": cationes,
+        "aniones": aniones,
+        "total_cationes": total_cationes,
+        "total_aniones": total_aniones,
+        "diferencia": total_cationes - total_aniones,
+    }
+
+
 # =============================================================================
 # 2. DATOS POR DEFECTO (PLANTILLAS DE CULTIVO Y CATÁLOGO DE FERTILIZANTES)
 # =============================================================================
@@ -159,7 +183,6 @@ COLS_RIQUEZA = ["N", "P2O5", "K2O", "Ca", "Mg", "S", "Fe", "Zn", "B"]
 # Ácidos por defecto para el Tanque 4
 ACIDOS_DEFECTO = {
     "H3PO4": {"nombre": "Ácido Fosfórico", "concentracion": 85.0, "densidad": 1.685, "elemento": "P", "peso_eq": PESO_EQ_H3PO4, "ppm_por_meq": 31.0},
-    "HNO3":  {"nombre": "Ácido Nítrico",   "concentracion": 67.0, "densidad": 1.400, "elemento": "N", "peso_eq": PESO_EQ_HNO3, "ppm_por_meq": 14.0},
 }
 
 
@@ -181,7 +204,6 @@ def init_state():
         "acidos_cfg": {k: dict(v) for k, v in ACIDOS_DEFECTO.items()},
         "hco3_residual": 0.5,       # meq/L deseados residuales
         "pH_objetivo": 5.8,
-        "pct_h3po4": 70,            # % del ácido total como H3PO4 (resto HNO3)
         "volumen_riego_m3": 10.0,
         "factor_concentracion": 100.0,
         "ce_objetivo": 2.0,
@@ -384,31 +406,20 @@ with tab_acidos:
             "pH objetivo después de acidificar", 3.0, 8.0,
             num(st.session_state["pH_objetivo"], 5.8), step=0.1)
 
-    st.session_state["pct_h3po4"] = st.slider(
-        "Proporción del ácido total como Ácido Fosfórico (%) — el resto se cubre con Ácido Nítrico",
-        0, 100, int(num(st.session_state["pct_h3po4"], 70)))
     st.caption(
         "La dosis se calcula por neutralización de bicarbonatos y solo se activa si el pH objetivo es menor "
-        "que el pH del agua. Para H₃PO₄ se usa la primera equivalencia: 98 g/mol por meq y 31 mg de P por meq."
+        "que el pH del agua. Se utiliza únicamente H₃PO₄, con primera equivalencia: "
+        "98 g/mol por meq y 31 mg de P por meq."
     )
 
     st.caption("Parámetros comerciales de los ácidos (editables)")
     ac = st.session_state["acidos_cfg"]
-    c5, c6 = st.columns(2)
-    with c5:
-        st.markdown("**Ácido Fosfórico (H₃PO₄)**")
-        ac["H3PO4"]["concentracion"] = st.number_input(
-            "Concentración comercial H₃PO₄ (% p/p)", 1.0, 100.0,
-            num(ac["H3PO4"]["concentracion"], 85.0), step=1.0, key="h3po4_conc")
-        ac["H3PO4"]["densidad"] = st.number_input(
-            "Densidad H₃PO₄ (g/mL)", 0.5, 2.5, num(ac["H3PO4"]["densidad"], 1.685), step=0.001, key="h3po4_dens")
-    with c6:
-        st.markdown("**Ácido Nítrico (HNO₃)**")
-        ac["HNO3"]["concentracion"] = st.number_input(
-            "Concentración comercial HNO₃ (% p/p)", 1.0, 100.0,
-            num(ac["HNO3"]["concentracion"], 67.0), step=1.0, key="hno3_conc")
-        ac["HNO3"]["densidad"] = st.number_input(
-            "Densidad HNO₃ (g/mL)", 0.5, 2.5, num(ac["HNO3"]["densidad"], 1.400), step=0.001, key="hno3_dens")
+    st.markdown("**Ácido Fosfórico (H₃PO₄)**")
+    ac["H3PO4"]["concentracion"] = st.number_input(
+        "Concentración comercial H₃PO₄ (% p/p)", 1.0, 100.0,
+        num(ac["H3PO4"]["concentracion"], 85.0), step=1.0, key="h3po4_conc")
+    ac["H3PO4"]["densidad"] = st.number_input(
+        "Densidad H₃PO₄ (g/mL)", 0.5, 2.5, num(ac["H3PO4"]["densidad"], 1.685), step=0.001, key="h3po4_dens")
     st.session_state["acidos_cfg"] = ac
 
 # -----------------------------------------------------------------------
@@ -435,6 +446,7 @@ def calcular_todo():
     catalogo = st.session_state["catalogo"].copy()
     acidos_cfg = st.session_state["acidos_cfg"]
     avisos = []
+    balance_iones = balance_iones_agua(agua)
 
     # --- 1. Aporte del agua (elemental) ---
     aporte_agua = {
@@ -461,15 +473,11 @@ def calcular_todo():
     requiere_bajar_pH = pH_objetivo < pH_agua - EPS
     meq_a_neutralizar = max(meq_hco3_agua - meq_residual, 0.0) if requiere_bajar_pH else 0.0
 
-    pct_h3po4 = num(st.session_state["pct_h3po4"]) / 100.0
-    pct_hno3 = 1.0 - pct_h3po4
-    meq_h3po4 = meq_a_neutralizar * pct_h3po4
-    meq_hno3 = meq_a_neutralizar * pct_hno3
+    meq_h3po4 = meq_a_neutralizar
 
     aporte_acido = {n: 0.0 for n in NUTRIENTES}
     aporte_acido["P"] = meq_h3po4 * ACIDOS_DEFECTO["H3PO4"]["ppm_por_meq"]
-    aporte_acido["N"] = meq_hno3 * ACIDOS_DEFECTO["HNO3"]["ppm_por_meq"]
-    for nutriente in ["N", "P"]:
+    for nutriente in ["P"]:
         if aporte_acido[nutriente] > demanda_tras_agua[nutriente] + EPS:
             avisos.append(
                 f"El ácido aporta {aporte_acido[nutriente]:.2f} ppm de {nutriente}, "
@@ -492,11 +500,7 @@ def calcular_todo():
 
     vol_h3po4_L_m3 = volumen_comercial_L_por_m3(
         meq_h3po4, PESO_EQ_H3PO4, acidos_cfg["H3PO4"]["concentracion"], acidos_cfg["H3PO4"]["densidad"])
-    vol_hno3_L_m3 = volumen_comercial_L_por_m3(
-        meq_hno3, PESO_EQ_HNO3, acidos_cfg["HNO3"]["concentracion"], acidos_cfg["HNO3"]["densidad"])
-
     vol_h3po4_total_tanqueC = vol_h3po4_L_m3 * v_riego
-    vol_hno3_total_tanqueC = vol_hno3_L_m3 * v_riego
 
     # --- 4. Demanda neta final para fertilizantes de los Tanques 1, 2 y 3 ---
     demanda_final = {n: max(demanda_tras_agua[n] - aporte_acido[n], 0.0) for n in NUTRIENTES}
@@ -568,7 +572,6 @@ def calcular_todo():
     masa_fertilizantes_g_m3 = float(np.sum(dosis_g_m3)) if n_fert > 0 else 0.0
     masa_acidos_g_m3 = (
         vol_h3po4_L_m3 * acidos_cfg["H3PO4"]["densidad"] * 1000.0
-        + vol_hno3_L_m3 * acidos_cfg["HNO3"]["densidad"] * 1000.0
     )
     ce_incremento = (masa_fertilizantes_g_m3 + masa_acidos_g_m3) / 640.0
     ce_estimada = num(agua["CE"]) + ce_incremento
@@ -604,12 +607,9 @@ def calcular_todo():
         "pH_agua": pH_agua,
         "pH_objetivo": pH_objetivo,
         "meq_h3po4": meq_h3po4,
-        "meq_hno3": meq_hno3,
         "aporte_acido": aporte_acido,
         "vol_h3po4_L_m3": vol_h3po4_L_m3,
-        "vol_hno3_L_m3": vol_hno3_L_m3,
         "vol_h3po4_total": vol_h3po4_total_tanqueC,
-        "vol_hno3_total": vol_hno3_total_tanqueC,
         "demanda_final": demanda_final,
         "catalogo_resultado": catalogo,
         "aporte_fertilizantes": aporte_fertilizantes,
@@ -620,6 +620,7 @@ def calcular_todo():
         "avisos": avisos,
         "v_riego": v_riego,
         "factor_c": factor_c,
+        "balance_iones": balance_iones,
     }
 
 
@@ -677,15 +678,31 @@ with tab_resultados:
 
         st.markdown("**Tanque 4 — Ácidos** (Acondicionamiento de pH)")
         df_tanqueC = pd.DataFrame({
-            "Ácido": ["Ácido Fosfórico (H₃PO₄)", "Ácido Nítrico (HNO₃)"],
-            "L comercial / m³ de riego": [round(resultado["vol_h3po4_L_m3"], 4), round(resultado["vol_hno3_L_m3"], 4)],
-            f"L totales para {resultado['v_riego']:.1f} m³": [round(resultado["vol_h3po4_total"], 3), round(resultado["vol_hno3_total"], 3)],
+            "Ácido": ["Ácido Fosfórico (H₃PO₄)"],
+            "L comercial / m³ de riego": [round(resultado["vol_h3po4_L_m3"], 4)],
+            f"L totales para {resultado['v_riego']:.1f} m³": [round(resultado["vol_h3po4_total"], 3)],
         })
         st.dataframe(df_tanqueC, hide_index=True, use_container_width=True)
         st.caption(
             f"meq/L de HCO₃⁻ del agua: {resultado['meq_hco3_agua']:.3f} · "
             f"meq/L a neutralizar: {resultado['meq_a_neutralizar']:.3f} "
-            f"(H₃PO₄: {resultado['meq_h3po4']:.3f} meq/L · HNO₃: {resultado['meq_hno3']:.3f} meq/L)"
+            f"(H₃PO₄: {resultado['meq_h3po4']:.3f} meq/L)"
+        )
+
+        st.markdown("### 3️⃣ Balance de iones del agua de riego (meq/L)")
+        balance_iones = resultado["balance_iones"]
+        df_iones = pd.DataFrame({
+            "Grupo": ["Cationes", "Aniones", "Diferencia (cationes − aniones)"],
+            "Total (meq/L)": [
+                round(balance_iones["total_cationes"], 3),
+                round(balance_iones["total_aniones"], 3),
+                round(balance_iones["diferencia"], 3),
+            ],
+        })
+        st.dataframe(df_iones, hide_index=True, use_container_width=True)
+        st.caption(
+            "Cationes: Na⁺, K⁺, Ca²⁺ y Mg²⁺. Aniones: HCO₃⁻, Cl⁻, NO₃⁻ y SO₄²⁻. "
+            "Un balance cercano a cero indica consistencia aproximada del análisis del agua."
         )
 
         vol_tanque_fisico_L = (resultado["v_riego"] * 1000.0) / resultado["factor_c"]
@@ -694,7 +711,7 @@ with tab_resultados:
 
         st.markdown("---")
         # ---- Panel 3: Indicadores de salida ----
-        st.markdown("### 3️⃣ Indicadores de Salida")
+        st.markdown("### 4️⃣ Indicadores de Salida")
         c1, c2 = st.columns(2)
         with c1:
             st.metric("CE estimada de la solución final", f"{resultado['ce_estimada']:.2f} dS/m",
