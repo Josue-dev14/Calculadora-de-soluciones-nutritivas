@@ -196,6 +196,12 @@ def init_state():
         catalogo.loc[catalogo["Fertilizante"] == "Nitrato de Potasio", "Tanque"] = "NQ"
         catalogo.loc[~catalogo["Tanque"].isin(TANQUES_VALIDOS), "Tanque"] = "SUL"
         st.session_state["catalogo"] = catalogo
+    for codigo in TANQUES_VALIDOS:
+        clave = f"fertilizantes_{codigo}"
+        if clave not in st.session_state:
+            st.session_state[clave] = st.session_state["catalogo"].loc[
+                st.session_state["catalogo"]["Tanque"] == codigo, "Fertilizante"
+            ].tolist()
 
 
 init_state()
@@ -324,32 +330,20 @@ with tab_cultivo:
 # -----------------------------------------------------------------------
 with tab_ferti:
     st.subheader("Selección de fertilizantes por tanque")
-    st.caption("Edita las riquezas (%), agrega o elimina fertilizantes dentro del tanque correspondiente. "
-               "Los ácidos se configuran por separado en el cuarto tanque.")
-
-    column_config = {
-        "Fertilizante": st.column_config.SelectboxColumn(
-            "Fertilizante", options=FERTILIZANTES_DISPONIBLES, required=True),
-    }
-    for c in COLS_RIQUEZA:
-        etiqueta = f"% {c}" if c not in ("P2O5", "K2O") else f"% {c}"
-        column_config[c] = st.column_config.NumberColumn(etiqueta, min_value=0.0, max_value=100.0, step=0.1)
+    st.caption("Selecciona uno o varios fertilizantes por tanque. La composición se toma del catálogo de productos.")
 
     tablas_tanques = []
     for codigo, nombre in TANQUES_FERTILIZANTES.items():
-        st.markdown(f"### {nombre}")
-        datos_tanque = st.session_state["catalogo"]
-        datos_tanque = datos_tanque[datos_tanque["Tanque"] == codigo].drop(columns=["Tanque"])
-        editado = st.data_editor(
-            datos_tanque.reset_index(drop=True),
-            column_config=column_config,
-            num_rows="dynamic",
-            use_container_width=True,
-            key=f"editor_catalogo_{codigo}",
+        seleccionados = st.multiselect(
+            nombre,
+            options=FERTILIZANTES_DISPONIBLES,
+            default=st.session_state[f"fertilizantes_{codigo}"],
+            key=f"selector_fertilizantes_{codigo}",
         )
-        editado = editado.copy()
-        editado["Tanque"] = codigo
-        tablas_tanques.append(editado)
+        st.session_state[f"fertilizantes_{codigo}"] = seleccionados
+        filas = CATALOGO_DEFECTO[CATALOGO_DEFECTO["Fertilizante"].isin(seleccionados)].copy()
+        filas["Tanque"] = codigo
+        tablas_tanques.append(filas)
     st.session_state["catalogo"] = pd.concat(tablas_tanques, ignore_index=True)
 
 # -----------------------------------------------------------------------
