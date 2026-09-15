@@ -54,7 +54,7 @@ EPS = 1e-9
 TANQUES_FERTILIZANTES = {
     "NQ": "Tanque 1 — Nitratos y quelatos",
     "FOS": "Tanque 2 — Fosfatos",
-    "NIT": "Tanque 3 — Nitratos",
+    "SUL": "Tanque 3 — Sulfatos",
 }
 TANQUES_VALIDOS = list(TANQUES_FERTILIZANTES)
 
@@ -143,14 +143,14 @@ PLANTILLAS_CULTIVO = {
 # Catálogo de fertilizantes de los tres tanques de fertilizantes (composición % en peso)
 CATALOGO_DEFECTO = pd.DataFrame([
     {"Fertilizante": "Nitrato de Calcio",           "Tanque": "NQ",  "N": 15.5, "P2O5": 0.0,  "K2O": 0.0,  "Ca": 19.0, "Mg": 0.0,  "S": 0.0,  "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
-    {"Fertilizante": "Nitrato de Potasio",          "Tanque": "NIT", "N": 13.0, "P2O5": 0.0,  "K2O": 46.0, "Ca": 0.0,  "Mg": 0.0, "S": 0.0,  "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
+    {"Fertilizante": "Nitrato de Potasio",          "Tanque": "NQ",  "N": 13.0, "P2O5": 0.0,  "K2O": 46.0, "Ca": 0.0,  "Mg": 0.0, "S": 0.0,  "Fe": 0.0, "Zn": 0.0,  "B": 0.0},
     {"Fertilizante": "Quelato de Hierro EDDHA",     "Tanque": "NQ",  "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 6.0, "Zn": 0.0, "B": 0.0},
     {"Fertilizante": "MAP (Fosfato Monoamónico)",   "Tanque": "FOS", "N": 12.0, "P2O5": 61.0, "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
     {"Fertilizante": "MKP (Fosfato Monopotásico)",  "Tanque": "FOS", "N": 0.0,  "P2O5": 52.0, "K2O": 34.0, "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
-    {"Fertilizante": "Sulfato de Magnesio",         "Tanque": "NIT", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 9.8, "S": 13.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
-    {"Fertilizante": "Sulfato de Potasio",          "Tanque": "NIT", "N": 0.0,  "P2O5": 0.0,  "K2O": 50.0, "Ca": 0.0,  "Mg": 0.0, "S": 18.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
-    {"Fertilizante": "Sulfato de Zinc",             "Tanque": "NIT", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 35.0, "B": 0.0},
-    {"Fertilizante": "Solubor",                     "Tanque": "NIT", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 0.0, "B": 20.5},
+    {"Fertilizante": "Sulfato de Magnesio",         "Tanque": "SUL", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0,  "Ca": 0.0,  "Mg": 9.8, "S": 13.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
+    {"Fertilizante": "Sulfato de Potasio",          "Tanque": "SUL", "N": 0.0,  "P2O5": 0.0,  "K2O": 50.0, "Ca": 0.0, "Mg": 0.0, "S": 18.0, "Fe": 0.0, "Zn": 0.0, "B": 0.0},
+    {"Fertilizante": "Sulfato de Zinc",             "Tanque": "SUL", "N": 0.0,  "P2O5": 0.0,  "K2O": 0.0, "Ca": 0.0, "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 35.0, "B": 0.0},
+    {"Fertilizante": "Solubor",                     "Tanque": "SUL", "N": 0.0,  "P2O5": 0.0, "K2O": 0.0, "Ca": 0.0,  "Mg": 0.0, "S": 0.0, "Fe": 0.0, "Zn": 0.0, "B": 20.5},
 ])
 
 FERTILIZANTES_DISPONIBLES = CATALOGO_DEFECTO["Fertilizante"].tolist()
@@ -192,8 +192,9 @@ def init_state():
             st.session_state[k] = v
     catalogo = st.session_state["catalogo"].copy()
     if "Tanque" in catalogo.columns:
-        catalogo["Tanque"] = catalogo["Tanque"].replace({"A": "NQ", "B": "FOS"})
-        catalogo.loc[~catalogo["Tanque"].isin(TANQUES_VALIDOS), "Tanque"] = "NIT"
+        catalogo["Tanque"] = catalogo["Tanque"].replace({"A": "NQ", "B": "FOS", "NIT": "SUL"})
+        catalogo.loc[catalogo["Fertilizante"] == "Nitrato de Potasio", "Tanque"] = "NQ"
+        catalogo.loc[~catalogo["Tanque"].isin(TANQUES_VALIDOS), "Tanque"] = "SUL"
         st.session_state["catalogo"] = catalogo
 
 
@@ -515,10 +516,11 @@ def calcular_todo():
     catalogo["Fertilizante"] = catalogo["Fertilizante"].fillna("").astype(str)
     catalogo = catalogo[catalogo["Fertilizante"].str.strip() != ""].reset_index(drop=True)
     if "Tanque" not in catalogo.columns:
-        catalogo["Tanque"] = "NIT"
-    catalogo["Tanque"] = catalogo["Tanque"].fillna("NIT").astype(str).str.upper().str.strip()
-    catalogo["Tanque"] = catalogo["Tanque"].replace({"A": "NQ", "B": "FOS"})
-    catalogo.loc[~catalogo["Tanque"].isin(TANQUES_VALIDOS), "Tanque"] = "NIT"
+        catalogo["Tanque"] = "SUL"
+    catalogo["Tanque"] = catalogo["Tanque"].fillna("SUL").astype(str).str.upper().str.strip()
+    catalogo["Tanque"] = catalogo["Tanque"].replace({"A": "NQ", "B": "FOS", "NIT": "SUL"})
+    catalogo.loc[~catalogo["Tanque"].isin(TANQUES_VALIDOS), "Tanque"] = "SUL"
+    catalogo.loc[catalogo["Fertilizante"] == "Nitrato de Potasio", "Tanque"] = "NQ"
 
     n_fert = len(catalogo)
     A_matrix = np.zeros((len(NUTRIENTES), max(n_fert, 1)))
